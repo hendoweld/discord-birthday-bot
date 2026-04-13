@@ -24,6 +24,7 @@ namespace BirthdayBot
         private CommandHandler _commandHandler;
 
         private bool _commandsRegistered = false;
+        private ulong _roleId;
         public async Task RunAsync(string token)
         {
             _client = new DiscordSocketClient(new DiscordSocketConfig
@@ -37,6 +38,7 @@ namespace BirthdayBot
             _commands = new InteractionService(_client);
 
             _birthdayService = new BirthdayService();
+            _birthdayService.Load();
 
             _services = new ServiceCollection()
             .AddSingleton(_client)
@@ -54,7 +56,7 @@ namespace BirthdayBot
 
             await _commandHandler.InitializeAsync();
 
-            _client.Ready += Ready;
+            _client.Ready += OnReady;
 
             await _client.LoginAsync(TokenType.Bot, token);
             await _client.StartAsync();
@@ -64,18 +66,61 @@ namespace BirthdayBot
 
         private async Task Ready()
         {
-            if (!_commandsRegistered)
+            foreach (var guild in _client.Guilds)
             {
-                await _commands.RegisterCommandsGloballyAsync();
-                _commandsRegistered = true;
-            }
-            _birthdayReminder = new BirthdayReminderService(
-                _client,
-                _birthdayService,
-                1493203044610080849
-            );
+                try
+                {
+                    var role = guild.Roles.FirstOrDefault(r => r.Name == "🎂 Birthday");
 
-            Console.WriteLine($"Bot online als {_client.CurrentUser}");
+                    if (role == null)
+                    {
+                        var createdRole = await guild.CreateRoleAsync(
+                            "🎂 Birthday",
+                            GuildPermissions.None,
+                            Color.Magenta,
+                            false,
+                            false
+                        );
+
+                        _roleId = createdRole.Id;
+                        role = guild.GetRole(_roleId);
+                    }
+                    else
+                    {
+                        _roleId = role.Id;
+                    }
+
+                    var config = _birthdayService.GetOrCreateConfig(guild.Id);
+
+                    _birthdayService.UpdateConfig(config);
+
+                    config.BirthdayRoleId = role.Id;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Role error in {guild.Name}: {ex.Message}");
+                }
+            }
+
+            Console.WriteLine("Bot ready auf allen Servers");
+        }
+        private async Task OnReady()
+        {
+            await _commands.RegisterCommandsGloballyAsync();
+            await Ready();
+
+            if (_birthdayReminder == null)
+            {
+                _birthdayReminder = new BirthdayReminderService(
+                    _client,
+                    _birthdayService,
+                    _roleId
+                );
+
+                _birthdayReminder.Start();
+            }
+
+            Console.WriteLine("Reminder gestartet!");
         }
     }
 }

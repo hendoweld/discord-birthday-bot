@@ -30,7 +30,7 @@ namespace BirthdayBot.Services
             _client.InteractionCreated += HandleInteraction;
 
             await _commands.AddModulesAsync(
-                Assembly.GetEntryAssembly(),
+                Assembly.GetExecutingAssembly(),
                 _services);
         }
         private async Task HandleInteraction(SocketInteraction interaction)
