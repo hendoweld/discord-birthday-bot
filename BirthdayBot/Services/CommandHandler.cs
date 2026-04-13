@@ -32,10 +32,7 @@ namespace BirthdayBot.Services
             await _commands.AddModulesAsync(
                 Assembly.GetEntryAssembly(),
                 _services);
-
-            await _commands.RegisterCommandsGloballyAsync();
         }
-
         private async Task HandleInteraction(SocketInteraction interaction)
         {
             try

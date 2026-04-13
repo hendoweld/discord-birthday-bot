@@ -28,7 +28,10 @@ namespace BirthdayBot
         {
             _client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.All
+                GatewayIntents =
+                    GatewayIntents.Guilds |
+                    GatewayIntents.GuildMessages |
+                    GatewayIntents.MessageContent
             });
 
             _commands = new InteractionService(_client);
@@ -66,11 +69,10 @@ namespace BirthdayBot
                 await _commands.RegisterCommandsGloballyAsync();
                 _commandsRegistered = true;
             }
-
             _birthdayReminder = new BirthdayReminderService(
                 _client,
                 _birthdayService,
-                123456789012345678
+                1493203044610080849
             );
 
             Console.WriteLine($"Bot online als {_client.CurrentUser}");
