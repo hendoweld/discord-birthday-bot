@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace BirthdayBot.Database.Models
 {
-    public class GuildConfig
+    public class Guild
     {
         public ulong GuildId { get; set; }
-
         public ulong BirthdayChannelId { get; set; }
         public ulong BirthdayRoleId { get; set; }
 

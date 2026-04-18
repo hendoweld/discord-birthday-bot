@@ -3,6 +3,7 @@ using Discord.Interactions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Text;
 using System.Text.Json;
@@ -12,11 +13,7 @@ namespace BirthdayBot.Services
 {
     public class BirthdayService
     {
-        private const string FilePath = "Data/birthdays.json";
-        private List<Birthday> _birthdays = new();
-        private List<GuildConfig> _configs = new();
-        private readonly string _filePath = "config.json";
-        private RootConfig _config;
+        private Root _config;
 
         public BirthdayService()
         {
@@ -25,18 +22,28 @@ namespace BirthdayBot.Services
 
         public void AddBirthday(ulong guildId, ulong userId, int day, int month, ulong channelId)
         {
-            var existing = _birthdays
+            // VALIDATION
+            if (!IsValidDate(day, month))
+            {
+                Console.WriteLine($"Invalid birthday: {day}.{month}");
+                return;
+            }
+
+            // existing entry finden
+            var existing = _config.Birthdays
                 .FirstOrDefault(x => x.GuildId == guildId && x.UserId == userId);
 
             if (existing != null)
             {
+                // update
                 existing.Day = day;
                 existing.Month = month;
                 existing.ChannelId = channelId;
             }
             else
             {
-                _birthdays.Add(new Birthday
+                // insert
+                _config.Birthdays.Add(new Birthday
                 {
                     GuildId = guildId,
                     UserId = userId,
@@ -49,42 +56,33 @@ namespace BirthdayBot.Services
             Save();
         }
 
+        public Birthday? GetBirthday(ulong guildId, ulong userId)
+        {
+            var result = _config.Birthdays
+                .FirstOrDefault(x =>
+                    x.GuildId == guildId &&
+                    x.UserId == userId);
+
+            if (result == null)
+                Console.WriteLine($"No birthday found for {userId} in {guildId}");
+
+            return result;
+        }
+
         public List<Birthday> GetBirthdays(ulong guildId)
         {
-            return _birthdays
+            return _config.Birthdays
                 .Where(x => x.GuildId == guildId)
                 .OrderBy(x => x.Month)
                 .ThenBy(x => x.Day)
                 .ToList();
         }
 
-        public bool RemoveBirthday(ulong guildId, ulong userId)
-        {
-            var entry = _birthdays
-                .FirstOrDefault(x => x.GuildId == guildId && x.UserId == userId);
-
-            if (entry == null)
-                return false;
-
-            _birthdays.Remove(entry);
-            Save();
-
-            return true;
-        }
-        public Birthday GetBirthday(ulong guildId, ulong userId)
-        {
-            return _birthdays
-                .FirstOrDefault(x =>
-                    x.GuildId == guildId &&
-                    x.UserId == userId
-                );
-        }
-
         public List<Birthday> GetTodaysBirthdays(ulong guildId)
         {
-            var today = DateTime.Now;
+            var today = DateTime.Today;
 
-            return _birthdays
+            return _config.Birthdays
                 .Where(x =>
                     x.GuildId == guildId &&
                     x.Day == today.Day &&
@@ -98,7 +96,8 @@ namespace BirthdayBot.Services
 
             var result = new List<(Birthday entry, int daysLeft)>();
 
-            var birthdays = _birthdays.Where(x => x.GuildId == guildId);
+            var birthdays = _config.Birthdays
+                .Where(x => x.GuildId == guildId);
 
             foreach (var b in birthdays)
             {
@@ -119,34 +118,49 @@ namespace BirthdayBot.Services
                 .OrderBy(x => x.daysLeft)
                 .ToList();
         }
-        public GuildConfig GetConfig(ulong guildId)
+
+        public bool RemoveBirthday(ulong guildId, ulong userId)
         {
-            return _config.GuildConfigs.FirstOrDefault(x => x.GuildId == guildId);
+            var entry = _config.Birthdays
+                .FirstOrDefault(x => x.GuildId == guildId && x.UserId == userId);
+
+            if (entry == null)
+                return false;
+
+            _config.Birthdays.Remove(entry);
+            Save();
+
+            return true;
         }
-        public GuildConfig GetOrCreateConfig(ulong guildId)
+
+        public Guild GetConfig(ulong guildId)
+        {
+            return _config.Guilds.FirstOrDefault(x => x.GuildId == guildId);
+        }
+        public Guild GetOrCreateConfig(ulong guildId)
         {
             var config = GetConfig(guildId);
 
             if (config == null)
             {
-                config = new GuildConfig
+                config = new Guild
                 {
                     GuildId = guildId
                 };
 
-                _config.GuildConfigs.Add(config);
+                _config.Guilds.Add(config);
             }
 
             return config;
         }
 
-        public void UpdateConfig(GuildConfig config)
+        public void UpdateConfig(Guild config)
         {
             var existing = GetOrCreateConfig(config.GuildId);
 
             if (existing == null)
             {
-                _config.GuildConfigs.Add(config);
+                _config.Guilds.Add(config);
             }
             else
             {
@@ -159,45 +173,48 @@ namespace BirthdayBot.Services
 
         public void Save()
         {
+            Directory.CreateDirectory("Data");
+
             var json = JsonSerializer.Serialize(_config, new JsonSerializerOptions
             {
                 WriteIndented = true
             });
 
-            File.WriteAllText(_filePath, json);
-            Directory.CreateDirectory("Data");
-
-            File.WriteAllText(
-                "Data/birthdays.json",
-                JsonSerializer.Serialize(_birthdays, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                })
-            );
+            File.WriteAllText("Data/config.lists.json", json);
         }
         public void Load()
         {
             try
             {
-                if (!File.Exists(_filePath))
+                var path = "Data/config.lists.json";
+
+                if (!File.Exists(path))
                 {
-                    _config = new RootConfig();
+                    _config = new Root();
                     return;
                 }
 
-                var json = File.ReadAllText(_filePath);
+                var json = File.ReadAllText(path);
 
-                _config = JsonSerializer.Deserialize<RootConfig>(json)
-                          ?? new RootConfig();
-                _birthdays = JsonSerializer.Deserialize<List<Birthday>>(json)
-                         ?? new List<Birthday>();
+                _config = JsonSerializer.Deserialize<Root>(json) ?? new Root();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Config Load Error: {ex.Message}");
-                _config = new RootConfig();
+                Console.WriteLine($"Load Error: {ex.Message}");
+                _config = new Root();
             }
         }
 
+        private bool IsValidDate(int day, int month)
+        {
+            if (month < 1 || month > 12)
+                return false;
+
+            if (day < 1 || day > 31)
+                return false;
+
+            // echte Kalenderprüfung
+            return DateTime.TryParse($"{day}.{month}.2000", out _);
+        }
     }
 }

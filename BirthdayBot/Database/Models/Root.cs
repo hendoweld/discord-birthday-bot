@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace BirthdayBot.Database.Models
 {
-    public class RootConfig
+    public class Root
     {
-        public string Token { get; set; }
-        public List<GuildConfig> GuildConfigs { get; set; } = new();
+        public List<Birthday> Birthdays { get; set; } = new();
+        public List<Guild> Guilds { get; set; } = new();
     }
 }

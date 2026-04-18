@@ -11,7 +11,6 @@ namespace BirthdayBot.Config
     {
         public static BotConfig Load()
         {
-            // 1. Erst ENV prüfen (Production)
             var envToken = Environment.GetEnvironmentVariable("DISCORD_TOKEN");
 
             if (!string.IsNullOrWhiteSpace(envToken))
@@ -23,11 +22,11 @@ namespace BirthdayBot.Config
                 };
             }
 
-            // 2. Fallback: JSON Datei (Development)
-            var path = Path.Combine(AppContext.BaseDirectory, "Config/config.json");
+            var path = Path.Combine(AppContext.BaseDirectory, "Config/config.token.json");
+            Console.WriteLine($"Config Path: {path}");
 
             if (!File.Exists(path))
-                throw new Exception("config.json nicht gefunden!");
+                throw new Exception("config.token.json nicht gefunden!");
 
             var json = File.ReadAllText(path);
 

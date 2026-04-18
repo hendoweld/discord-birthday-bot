@@ -1,15 +1,11 @@
 ﻿using BirthdayBot.Services;
 using Discord;
 using Discord.Interactions;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.Commands
 {
+    [Group("birthday-config", "Birthday configuration commands")]
+    [DefaultMemberPermissions(GuildPermission.Administrator)] // nur Admins
     public class BirthdayConfigCommand : InteractionModuleBase<SocketInteractionContext>
     {
         private readonly BirthdayService _birthdayService;
@@ -18,7 +14,9 @@ namespace BirthdayBot.Commands
         {
             _birthdayService = birthdayService;
         }
-        [SlashCommand("birthday-config-channel", "Setzt den Birthday Channel")]
+
+        // /birthday-config channel
+        [SlashCommand("channel", "Setzt den Birthday Channel")]
         public async Task SetChannel(ITextChannel channel)
         {
             var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
@@ -26,20 +24,13 @@ namespace BirthdayBot.Commands
             config.BirthdayChannelId = channel.Id;
 
             _birthdayService.UpdateConfig(config);
-
-            if (config == null)
-            {
-                await RespondAsync("❌ Bitte zuerst Role setzen!", ephemeral: true);
-                Console.WriteLine($"GuildId: {Context.Guild.Id}");
-                return;
-            }
-
-            config.BirthdayChannelId = channel.Id;
             _birthdayService.Save();
 
-            await RespondAsync($"✅ Birthday Channel gesetzt: {channel.Mention}", ephemeral: true);
+            await RespondAsync($"✅ Channel gesetzt: {channel.Mention}", ephemeral: true);
         }
-        [SlashCommand("birthday-config-role", "Setzt die Birthday Role")]
+
+        // /birthday-config role
+        [SlashCommand("role", "Setzt die Birthday Role")]
         public async Task SetRole(IRole role)
         {
             var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
@@ -47,18 +38,49 @@ namespace BirthdayBot.Commands
             config.BirthdayRoleId = role.Id;
 
             _birthdayService.UpdateConfig(config);
-
-            if (config == null)
-            {
-                await RespondAsync("❌ Config existiert nicht!", ephemeral: true);
-                Console.WriteLine($"GuildId: {Context.Guild.Id}");
-                return;
-            }
-
-            config.BirthdayRoleId = role.Id;
             _birthdayService.Save();
 
             await RespondAsync($"🎂 Role gesetzt: {role.Name}", ephemeral: true);
+        }
+
+        // /birthday-config show
+        [SlashCommand("show", "Zeigt aktuelle Birthday Config")]
+        public async Task Show()
+        {
+            var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
+
+            if (config == null)
+            {
+                await RespondAsync("❌ Keine Config gefunden", ephemeral: true);
+                return;
+            }
+
+            var channel = Context.Guild.GetTextChannel(config.BirthdayChannelId);
+            var role = Context.Guild.GetRole(config.BirthdayRoleId);
+
+            var embed = new EmbedBuilder()
+                .WithTitle("⚙️ Birthday Config")
+                .WithColor(Color.Blue)
+                .AddField("Channel", channel != null ? channel.Mention : "❌ nicht gesetzt", true)
+                .AddField("Role", role != null ? role.Name : "❌ nicht gesetzt", true)
+                .Build();
+
+            await RespondAsync(embed: embed, ephemeral: true);
+        }
+
+        // /birthday-config reset
+        [SlashCommand("reset", "Setzt die Config zurück")]
+        public async Task Reset()
+        {
+            var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
+
+            config.BirthdayChannelId = 0;
+            config.BirthdayRoleId = 0;
+
+            _birthdayService.UpdateConfig(config);
+            _birthdayService.Save();
+
+            await RespondAsync("🧹 Config wurde zurückgesetzt", ephemeral: true);
         }
     }
 }
