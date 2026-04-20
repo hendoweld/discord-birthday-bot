@@ -5,7 +5,7 @@ using Discord.Interactions;
 namespace BirthdayBot.Commands
 {
     [Group("birthday-config", "Birthday configuration commands")]
-    [DefaultMemberPermissions(GuildPermission.Administrator)] // nur Admins
+    [DefaultMemberPermissions(GuildPermission.Administrator)]
     public class BirthdayConfigCommand : InteractionModuleBase<SocketInteractionContext>
     {
         private readonly BirthdayService _birthdayService;
@@ -19,12 +19,12 @@ namespace BirthdayBot.Commands
         [SlashCommand("channel", "Setzt den Birthday Channel")]
         public async Task SetChannel(ITextChannel channel)
         {
-            var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
+            var config = await _birthdayService.GetConfig(Context.Guild.Id)
+                         ?? new Database.Models.Guild { GuildId = Context.Guild.Id };
 
             config.BirthdayChannelId = channel.Id;
 
-            _birthdayService.UpdateConfig(config);
-            _birthdayService.Save();
+            await _birthdayService.UpdateConfig(config);
 
             await RespondAsync($"✅ Channel gesetzt: {channel.Mention}", ephemeral: true);
         }
@@ -33,12 +33,12 @@ namespace BirthdayBot.Commands
         [SlashCommand("role", "Setzt die Birthday Role")]
         public async Task SetRole(IRole role)
         {
-            var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
+            var config = await _birthdayService.GetConfig(Context.Guild.Id)
+                         ?? new Database.Models.Guild { GuildId = Context.Guild.Id };
 
             config.BirthdayRoleId = role.Id;
 
-            _birthdayService.UpdateConfig(config);
-            _birthdayService.Save();
+            await _birthdayService.UpdateConfig(config);
 
             await RespondAsync($"🎂 Role gesetzt: {role.Name}", ephemeral: true);
         }
@@ -47,7 +47,7 @@ namespace BirthdayBot.Commands
         [SlashCommand("show", "Zeigt aktuelle Birthday Config")]
         public async Task Show()
         {
-            var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
+            var config = await _birthdayService.GetConfig(Context.Guild.Id);
 
             if (config == null)
             {
@@ -72,13 +72,13 @@ namespace BirthdayBot.Commands
         [SlashCommand("reset", "Setzt die Config zurück")]
         public async Task Reset()
         {
-            var config = _birthdayService.GetOrCreateConfig(Context.Guild.Id);
+            var config = await _birthdayService.GetConfig(Context.Guild.Id)
+                         ?? new Database.Models.Guild { GuildId = Context.Guild.Id };
 
             config.BirthdayChannelId = 0;
             config.BirthdayRoleId = 0;
 
-            _birthdayService.UpdateConfig(config);
-            _birthdayService.Save();
+            await _birthdayService.UpdateConfig(config);
 
             await RespondAsync("🧹 Config wurde zurückgesetzt", ephemeral: true);
         }

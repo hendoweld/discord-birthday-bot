@@ -8,17 +8,19 @@ namespace BirthdayBot.Core
     {
         private readonly DiscordSocketClient _client;
         private readonly InteractionService _commands;
-        private readonly BirthdayService _birthdayService;
         private readonly IServiceProvider _services;
+        private readonly LoggingService _logger;
 
         public CommandHandler(
             DiscordSocketClient client,
             InteractionService commands,
-            IServiceProvider services)
+            IServiceProvider services,
+            LoggingService logger)
         {
             _client = client;
             _commands = commands;
             _services = services;
+            _logger = logger;
         }
 
         public async Task InitializeAsync()
@@ -29,16 +31,16 @@ namespace BirthdayBot.Core
             // Modules laden
             await _commands.AddModulesAsync(typeof(Bot).Assembly, _services);
 
-            Console.WriteLine("Modules geladen:");
+            _logger.Info("Modules geladen:");
             foreach (var module in _commands.Modules)
-                Console.WriteLine($" - {module.Name}");
+                _logger.Info($" - {module.Name}");
 
-            Console.WriteLine("CommandHandler ready");
+            _logger.Info("CommandHandler ready");
         }
 
         private async Task HandleInteraction(SocketInteraction interaction)
         {
-            Console.WriteLine($"Interaction: {interaction.Type}");
+            _logger.Info($"Interaction: {interaction.Type}");
 
             var context = new SocketInteractionContext(_client, interaction);
 
@@ -47,11 +49,11 @@ namespace BirthdayBot.Core
                 var result = await _commands.ExecuteCommandAsync(context, _services);
 
                 if (!result.IsSuccess)
-                    Console.WriteLine($"Command Error: {result.ErrorReason}");
+                    _logger.Error($"Command Error: {result.ErrorReason}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"EXCEPTION: {ex}");
+                _logger.Error($"EXCEPTION: {ex}");
             }
         }
     }

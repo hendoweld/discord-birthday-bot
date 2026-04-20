@@ -1,16 +1,20 @@
 ﻿using BirthdayBot.Core;
 using BirthdayBot.Services;
+using BirthdayBot.Database;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using BirthdayBot.Database.Models;
 
 namespace BirthdayBot
 {
     public class Bot
     {
-        public async Task RunAsync(string token)
+        public async Task RunAsync(BotConfig config, LoggingService logger)
         {
+
+            // DISCORD CLIENT
             var client = new DiscordSocketClient(new DiscordSocketConfig
             {
                 GatewayIntents =
@@ -22,43 +26,48 @@ namespace BirthdayBot
 
             var commands = new InteractionService(client);
 
-            // SERVICES
-            var birthdayService = new BirthdayService();
-            birthdayService.Load();
+            // DATABASE
+            var database = new DatabaseService(config.Database, logger);
+            await database.Initialize();
 
-            var permissionService = new DiscordPermissionService();
-
-            var backgroundService = new BirthdayBackgroundService(
-                client,
-                birthdayService,
-                permissionService
-            );
-
-            // COMMAND HANDLER
+            // DEPENDENCY INJECTION
             var services = new ServiceCollection()
+                .AddSingleton(logger)
+                .AddSingleton(database)
                 .AddSingleton(client)
                 .AddSingleton(commands)
-                .AddSingleton(birthdayService)
+
+                .AddSingleton<BirthdayRepository>()
+                .AddSingleton<GuildRepository>()
+
+                .AddSingleton<BirthdayService>()
+                .AddSingleton<DiscordPermissionService>()
+                .AddSingleton<BirthdayBackgroundService>()
+
                 .BuildServiceProvider();
 
-            var commandHandler = new CommandHandler(client, commands, services);
+            // RESOLVE SERVICES
+            var birthdayService = services.GetRequiredService<BirthdayService>();
+            var backgroundService = services.GetRequiredService<BirthdayBackgroundService>();
 
-            // EVENT HANDLER
+            var commandHandler = new CommandHandler(client, commands, services, logger);
+
             var eventHandler = new BotEventHandler(
                 client,
                 backgroundService,
-                commands
+                commands,
+                birthdayService,
+                logger
             );
 
             eventHandler.Initialize();
 
-            // LOGIN FIRST
-            await client.LoginAsync(TokenType.Bot, token);
+            // START BOT
+            await client.LoginAsync(TokenType.Bot, config.Token);
             await client.StartAsync();
 
-            Console.WriteLine("Bot gestartet");
+            logger.Info("Bot gestartet");
 
-            // THEN INIT COMMANDS
             await commandHandler.InitializeAsync();
 
             await Task.Delay(-1);

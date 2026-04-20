@@ -16,20 +16,16 @@ namespace BirthdayBot.Commands
         }
 
         // /birthday set
-        // Speichert den Geburtstag eines Users
         [SlashCommand("set", "Speichert deinen Geburtstag")]
         public async Task Set(int day, int month)
         {
             if (!DateTime.TryParse($"{day}.{month}.2000", out _))
             {
-                await RespondAsync(
-                    "❌ Ungültiges Datum. Bitte prüfe Tag und Monat.",
-                    ephemeral: true
-                );
+                await RespondAsync("❌ Ungültiges Datum. Bitte prüfe Tag und Monat.", ephemeral: true);
                 return;
             }
 
-            _birthdayService.AddBirthday(
+            await _birthdayService.AddBirthday(
                 Context.Guild.Id,
                 Context.User.Id,
                 day,
@@ -44,40 +40,35 @@ namespace BirthdayBot.Commands
         }
 
         // /birthday me
-        // Zeigt den eigenen Geburtstag
         [SlashCommand("me", "Zeigt deinen Geburtstag")]
         public async Task Me()
         {
-            var birthdays = _birthdayService.GetBirthdays(Context.Guild.Id);
+            var birthday = await _birthdayService.GetBirthday(
+                Context.Guild.Id,
+                Context.User.Id
+            );
 
-            var user = birthdays.FirstOrDefault(x => x.UserId == Context.User.Id);
-
-            if (user == null)
+            if (birthday == null)
             {
                 await RespondAsync("❌ Du hast noch keinen Geburtstag gesetzt.");
                 return;
             }
 
-            await RespondAsync($"📅 Dein Geburtstag: {user.Day:D2}.{user.Month:D2}");
+            await RespondAsync($"📅 Dein Geburtstag: {birthday.Day:D2}.{birthday.Month:D2}");
         }
 
         // /birthday list
-        // Zeigt alle Geburtstage im Server
         [SlashCommand("list", "Zeigt alle gespeicherten Geburtstage")]
         public async Task List()
         {
-            var birthdays = _birthdayService
-                .GetBirthdays(Context.Guild.Id)
+            var birthdays = (await _birthdayService.GetBirthdays(Context.Guild.Id))
                 .OrderBy(x => x.Month)
                 .ThenBy(x => x.Day)
                 .ToList();
 
             if (birthdays.Count == 0)
             {
-                await RespondAsync(
-                    "📭 Es sind noch keine Geburtstage gespeichert.",
-                    ephemeral: true
-                );
+                await RespondAsync("📭 Es sind noch keine Geburtstage gespeichert.", ephemeral: true);
                 return;
             }
 
@@ -90,22 +81,17 @@ namespace BirthdayBot.Commands
                 var user = Context.Guild.GetUser(b.UserId);
                 if (user == null) continue;
 
-                embed.AddField(
-                    user.Username,
-                    $"📅 {b.Day:D2}.{b.Month:D2}",
-                    true
-                );
+                embed.AddField(user.Username, $"📅 {b.Day:D2}.{b.Month:D2}", true);
             }
 
             await RespondAsync(embed: embed.Build());
         }
 
         // /birthday upcoming
-        // Zeigt kommende Geburtstage
         [SlashCommand("upcoming", "Zeigt kommende Geburtstage")]
         public async Task Upcoming()
         {
-            var upcoming = _birthdayService.GetUpcomingBirthdays(Context.Guild.Id);
+            var upcoming = await _birthdayService.GetUpcomingBirthdays(Context.Guild.Id);
 
             if (upcoming.Count == 0)
             {
@@ -135,37 +121,29 @@ namespace BirthdayBot.Commands
         }
 
         // /birthday remove
-        // Löscht den eigenen Geburtstag
         [SlashCommand("remove", "Löscht deinen gespeicherten Geburtstag")]
         public async Task Remove()
         {
-            var removed = _birthdayService.RemoveBirthday(
+            var removed = await _birthdayService.RemoveBirthday(
                 Context.Guild.Id,
                 Context.User.Id
             );
 
             if (!removed)
             {
-                await RespondAsync(
-                    "❌ Du hast noch keinen Geburtstag gespeichert.",
-                    ephemeral: true
-                );
+                await RespondAsync("❌ Du hast noch keinen Geburtstag gespeichert.", ephemeral: true);
                 return;
             }
 
-            await RespondAsync(
-                "🗑️ Dein Geburtstag wurde gelöscht.",
-                ephemeral: true
-            );
+            await RespondAsync("🗑️ Dein Geburtstag wurde gelöscht.", ephemeral: true);
         }
 
         // /birthday remove-user
-        // Admin kann Geburtstag eines Users löschen
         [SlashCommand("remove-user", "Löscht den Geburtstag eines Users")]
         [DefaultMemberPermissions(GuildPermission.Administrator)]
         public async Task RemoveUser(SocketGuildUser user)
         {
-            var removed = _birthdayService.RemoveBirthday(
+            var removed = await _birthdayService.RemoveBirthday(
                 Context.Guild.Id,
                 user.Id
             );

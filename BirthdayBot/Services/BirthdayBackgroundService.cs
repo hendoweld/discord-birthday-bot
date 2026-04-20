@@ -7,27 +7,29 @@ namespace BirthdayBot.Services
         private readonly DiscordSocketClient _client;
         private readonly BirthdayService _birthdayService;
         private readonly DiscordPermissionService _permissionService;
+        private readonly LoggingService _logger;
 
         private CancellationTokenSource _cts;
 
         public BirthdayBackgroundService(
             DiscordSocketClient client,
             BirthdayService birthdayService,
-            DiscordPermissionService permissionService)
+            DiscordPermissionService permissionService,
+            LoggingService logger)
         {
             _client = client;
             _birthdayService = birthdayService;
             _permissionService = permissionService;
+            _logger = logger;
         }
 
-        // START LOOP
         public void Start()
         {
             _cts = new CancellationTokenSource();
 
             Task.Run(async () =>
             {
-                Console.WriteLine("Birthday Background Service gestartet");
+                _logger.Info("Birthday Background Service gestartet");
 
                 while (!_cts.Token.IsCancellationRequested)
                 {
@@ -37,31 +39,29 @@ namespace BirthdayBot.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Background error: {ex.Message}");
+                        _logger.Error($"Background error: {ex.Message}");
                     }
 
-                    // Intervall
                     await Task.Delay(TimeSpan.FromMinutes(1), _cts.Token);
                 }
             });
         }
 
-        // STOP LOOP
         public void Stop()
         {
             _cts?.Cancel();
         }
 
-        // MAIN LOGIC
         private async Task CheckBirthdays()
         {
             var today = DateTime.Today;
+            _logger.Info("Birthday check start");
 
             foreach (var guild in _client.Guilds)
             {
-                var config = _birthdayService.GetOrCreateConfig(guild.Id);
+                var config = await _birthdayService.GetConfig(guild.Id);
 
-                if (config.BirthdayChannelId == 0)
+                if (config == null || config.BirthdayChannelId == 0)
                     continue;
 
                 var channel = guild.GetTextChannel(config.BirthdayChannelId);
@@ -72,18 +72,25 @@ namespace BirthdayBot.Services
                 if (role == null)
                     continue;
 
-                // Permission Check
                 if (!_permissionService.CanManageRole(guild, role))
                     continue;
 
                 // ROLE CLEANUP
-                foreach (var user in guild.Users.Where(u => u.Roles.Any(r => r.Id == role.Id)))
-                {
-                    var birthday = _birthdayService.GetBirthday(guild.Id, user.Id);
+                var birthdays = await _birthdayService.GetBirthdays(guild.Id);
 
-                    if (birthday == null ||
-                        birthday.Day != today.Day ||
-                        birthday.Month != today.Month)
+                var birthdayUserIds = birthdays
+                    .Where(b => b.Day == today.Day && b.Month == today.Month)
+                    .Select(b => b.UserId)
+                    .ToHashSet();
+
+                var roleId = role.Id;
+
+                var membersWithRole = guild.Users
+                    .Where(u => u.Roles.Any(r => r.Id == roleId));
+
+                foreach (var user in membersWithRole)
+                {
+                    if (!birthdayUserIds.Contains(user.Id))
                     {
                         try
                         {
@@ -91,13 +98,10 @@ namespace BirthdayBot.Services
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"RemoveRole error: {ex.Message}");
+                            _logger.Error($"RemoveRole error: {ex.Message}");
                         }
                     }
                 }
-
-                // TODAY BIRTHDAYS
-                var birthdays = _birthdayService.GetTodaysBirthdays(guild.Id);
 
                 foreach (var b in birthdays)
                 {
@@ -108,9 +112,7 @@ namespace BirthdayBot.Services
                     if (user == null)
                         continue;
 
-                    await channel.SendMessageAsync(
-                        $"🎉 <@{b.UserId}> hat heute Geburtstag!"
-                    );
+                    await channel.SendMessageAsync($"🎉 <@{b.UserId}> hat heute Geburtstag!");
 
                     try
                     {
@@ -118,14 +120,14 @@ namespace BirthdayBot.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"AddRole error: {ex.Message}");
+                        _logger.Error($"AddRole error: {ex.Message}");
                     }
 
-                    b.LastNotified = today;
+                    await _birthdayService.UpdateLastNotified(guild.Id, b.UserId);
                 }
             }
 
-            _birthdayService.Save();
+            _logger.Info("Birthday check end");
         }
     }
 }

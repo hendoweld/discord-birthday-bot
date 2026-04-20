@@ -1,30 +1,14 @@
-﻿using Discord;
-using Discord.WebSocket;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BirthdayBot.Services
+﻿namespace BirthdayBot.Services
 {
     public class LoggingService
     {
-        public LoggingService(DiscordSocketClient client)
-        {
-            client.Log += LogAsync;
-        }
+        public void Info(string msg)
+            => Console.WriteLine($"[{DateTime.Now:HH:mm:ss:fff}] INFO: {msg}");
 
-        private Task LogAsync(LogMessage message)
-        {
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{message.Severity}] {message.Source}: {message.Message}");
+        public void Error(string msg)
+            => Console.WriteLine($"[{DateTime.Now:HH:mm:ss:fff}] ERROR: {msg}");
 
-            if (message.Exception != null)
-            {
-                Console.WriteLine(message.Exception);
-            }
-
-            return Task.CompletedTask;
-        }
+        public void Warn(string msg)
+            => Console.WriteLine($"[{DateTime.Now:HH:mm:ss:fff}] WARN: {msg}");
     }
 }

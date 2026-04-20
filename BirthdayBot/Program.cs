@@ -1,16 +1,16 @@
 ﻿using BirthdayBot;
 using BirthdayBot.Config;
-using Discord;
-using Discord.WebSocket;
-using System.Text.Json;
+using BirthdayBot.Services;
 
 class Program
 {
     static async Task Main()
     {
-        var config = ConfigLoader.Load();
+        var logger = new LoggingService();
+        var configLoader = new ConfigLoader(logger);
+        var config = configLoader.Load();
 
         var bot = new Bot();
-        await bot.RunAsync(config.Token);
+        await bot.RunAsync(config, logger);
     }
 }

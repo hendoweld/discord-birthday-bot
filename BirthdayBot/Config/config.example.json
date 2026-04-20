@@ -1,3 +1,4 @@
 {
-  "token": "YOUR_TOKEN_HERE"
+  "Token": "YOUR_TOKEN_HERE",
+  "Database": "Host=localhost;Port=5432;Database=birthdaybot;Username=postgres;Password=YOUR_PASSWORD_HERE"
 }
