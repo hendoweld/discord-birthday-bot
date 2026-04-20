@@ -23,42 +23,38 @@ namespace BirthdayBot
             var commands = new InteractionService(client);
 
             // SERVICES
-            var birthdayService = new BirthdayService();
-            birthdayService.Load();
-
-            var permissionService = new DiscordPermissionService();
-
-            var backgroundService = new BirthdayBackgroundService(
-                client,
-                birthdayService,
-                permissionService
-            );
-
-            // COMMAND HANDLER
             var services = new ServiceCollection()
                 .AddSingleton(client)
                 .AddSingleton(commands)
-                .AddSingleton(birthdayService)
+                .AddSingleton<BirthdayService>()
+                .AddSingleton<DiscordPermissionService>()
+                .AddSingleton<BirthdayBackgroundService>()
+                .AddSingleton<LoggingService>()
                 .BuildServiceProvider();
 
-            var commandHandler = new CommandHandler(client, commands, services);
+            var birthdayService = services.GetRequiredService<BirthdayService>();
+            birthdayService.Load();
 
-            // EVENT HANDLER
+            var backgroundService = services.GetRequiredService<BirthdayBackgroundService>();
+            var logger = services.GetRequiredService<LoggingService>();
+
+            var commandHandler = new CommandHandler(client, commands, services, logger);
+
             var eventHandler = new BotEventHandler(
                 client,
                 backgroundService,
-                commands
+                commands,
+                birthdayService,
+                logger
             );
 
             eventHandler.Initialize();
 
-            // LOGIN FIRST
             await client.LoginAsync(TokenType.Bot, token);
             await client.StartAsync();
 
-            Console.WriteLine("Bot gestartet");
+            logger.Info("Bot gestartet");
 
-            // THEN INIT COMMANDS
             await commandHandler.InitializeAsync();
 
             await Task.Delay(-1);

@@ -1,22 +1,16 @@
 ﻿using BirthdayBot.Database.Models;
-using Discord.Interactions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace BirthdayBot.Services
 {
     public class BirthdayService
     {
         private Root _config;
+        private readonly LoggingService _logger;
 
-        public BirthdayService()
+        public BirthdayService(LoggingService logger)
         {
+            _logger = logger;
             Load();
         }
 
@@ -25,7 +19,7 @@ namespace BirthdayBot.Services
             // VALIDATION
             if (!IsValidDate(day, month))
             {
-                Console.WriteLine($"Invalid birthday: {day}.{month}");
+                _logger.Warn($"Invalid birthday: {day}.{month}");
                 return;
             }
 
@@ -64,7 +58,7 @@ namespace BirthdayBot.Services
                     x.UserId == userId);
 
             if (result == null)
-                Console.WriteLine($"No birthday found for {userId} in {guildId}");
+                _logger.Warn($"No birthday found for {userId} in {guildId}");
 
             return result;
         }
@@ -200,7 +194,7 @@ namespace BirthdayBot.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Load Error: {ex.Message}");
+                _logger.Error($"Load Error: {ex.Message}");
                 _config = new Root();
             }
         }

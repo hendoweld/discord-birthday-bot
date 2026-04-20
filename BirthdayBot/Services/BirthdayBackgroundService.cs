@@ -7,17 +7,20 @@ namespace BirthdayBot.Services
         private readonly DiscordSocketClient _client;
         private readonly BirthdayService _birthdayService;
         private readonly DiscordPermissionService _permissionService;
+        private readonly LoggingService _logger;
 
         private CancellationTokenSource _cts;
 
         public BirthdayBackgroundService(
             DiscordSocketClient client,
             BirthdayService birthdayService,
-            DiscordPermissionService permissionService)
+            DiscordPermissionService permissionService,
+            LoggingService logger)
         {
             _client = client;
             _birthdayService = birthdayService;
             _permissionService = permissionService;
+            _logger = logger;
         }
 
         // START LOOP
@@ -27,7 +30,7 @@ namespace BirthdayBot.Services
 
             Task.Run(async () =>
             {
-                Console.WriteLine("Birthday Background Service gestartet");
+                _logger.Info("Birthday Background Service gestartet");
 
                 while (!_cts.Token.IsCancellationRequested)
                 {
@@ -37,7 +40,7 @@ namespace BirthdayBot.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Background error: {ex.Message}");
+                        _logger.Error($"Background error: {ex.Message}");
                     }
 
                     // Intervall
@@ -56,6 +59,7 @@ namespace BirthdayBot.Services
         private async Task CheckBirthdays()
         {
             var today = DateTime.Today;
+            _logger.Info($"Birthday check start");
 
             foreach (var guild in _client.Guilds)
             {
@@ -91,7 +95,7 @@ namespace BirthdayBot.Services
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"RemoveRole error: {ex.Message}");
+                            _logger.Error($"RemoveRole error: {ex.Message}");
                         }
                     }
                 }
@@ -118,13 +122,13 @@ namespace BirthdayBot.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"AddRole error: {ex.Message}");
+                        _logger.Error($"AddRole error: {ex.Message}");
                     }
 
                     b.LastNotified = today;
                 }
             }
-
+            _logger.Info($"Birthday check end");
             _birthdayService.Save();
         }
     }
