@@ -31,13 +31,14 @@ namespace BirthdayBot.Core
         {
             _client.Ready += OnReady;
             _client.JoinedGuild += OnJoinedGuild;
+            _client.LeftGuild += OnLeftGuild;
         }
 
         // BOT READY
         private async Task OnReady()
         {
             _logger.Info("READY EVENT TRIGGERED");
-
+            await CleanupOrphanGuilds();
             foreach (var guild in _client.Guilds)
             {
                 await _commands.RegisterCommandsToGuildAsync(guild.Id);
@@ -52,29 +53,62 @@ namespace BirthdayBot.Core
         // NEW SERVER
         private async Task OnJoinedGuild(SocketGuild guild)
         {
+            _logger.Info("======================");
             _logger.Info($"Joined guild: {guild.Name}");
 
             await AutoSetupGuild(guild);
         }
 
+        //LEFT SERVER
+        private async Task OnLeftGuild(SocketGuild guild)
+        {
+            _logger.Info("======================");
+            _logger.Warn($"Bot removed from guild: {guild.Name} ({guild.Id})");
+
+            try
+            {
+                await _birthdayService.DeleteGuildData(guild.Id);
+
+                _logger.Info($"Guild data cleaned for {guild.Id}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Cleanup failed for {guild.Id}: {ex}");
+            }
+            _logger.Info("======================");
+        }
+
+        //LEFT SERVER WHILE OFFLINE
+        private async Task CleanupOrphanGuilds()
+        {
+            _logger.Info("Checking orphan guilds...");
+
+            var dbGuilds = await _birthdayService.GetAllGuildConfigs();
+
+            foreach (var dbGuild in dbGuilds)
+            {
+                var existsInDiscord = _client.Guilds.Any(g => g.Id == dbGuild.GuildId);
+
+                if (!existsInDiscord)
+                {
+                    _logger.Warn($"Guild not found in Discord anymore: {dbGuild.GuildId}");
+
+                    await _birthdayService.DeleteGuildData(dbGuild.GuildId);
+                }
+            }
+
+            _logger.Info("Orphan cleanup finished");
+        }
+
         // AUTO SETUP
         private async Task AutoSetupGuild(SocketGuild guild)
         {
+            _logger.Info("======================");
             _logger.Info($"AutoSetup start: {guild.Name}");
 
             try
             {
-                var config = await _birthdayService.GetConfig(guild.Id);
-
-                if (config == null)
-                {
-                    config = new Database.Models.Guild
-                    {
-                        GuildId = guild.Id
-                    };
-
-                    _logger.Info("No config found -> new config created");
-                }
+                var config = await _birthdayService.GetOrCreateConfig(guild.Id);
 
                 // ROLE 
                 _logger.Info("Checking birthday role");
@@ -83,6 +117,13 @@ namespace BirthdayBot.Core
 
                 if (config.BirthdayRoleId != 0)
                     role = guild.GetRole(config.BirthdayRoleId);
+                    if (role == null || role.Name != "🎂 Birthday")
+                    {
+                        _logger.Warn($"Invalid role in DB: {role?.Name ?? "null"}");
+
+                        config.BirthdayRoleId = 0;
+                        role = null;
+                }
 
                 role ??= guild.Roles.FirstOrDefault(r => r.Name == "🎂 Birthday");
 
@@ -114,17 +155,22 @@ namespace BirthdayBot.Core
                 ITextChannel channel = null;
 
                 if (config.BirthdayChannelId != 0)
+                {
                     channel = guild.GetTextChannel(config.BirthdayChannelId);
-
-                channel ??= guild.TextChannels.FirstOrDefault(c => c.Name == "birthdays");
+                }
 
                 if (channel == null)
                 {
-                    _logger.Info("Birthday channel not found -> creating channel");
+                    channel = guild.TextChannels.FirstOrDefault(c => c.Name == "birthdays");
 
-                    channel = await guild.CreateTextChannelAsync("birthdays");
+                    if (channel != null)
+                        _logger.Info("Fallback channel 'birthdays' used");
+                }
 
-                    _logger.Info("Birthday channel created");
+                if (channel == null)
+                {
+                    _logger.Warn("No birthday channel configured -> skipping guild");
+                    return;
                 }
 
                 config.BirthdayChannelId = channel.Id;
@@ -138,19 +184,6 @@ namespace BirthdayBot.Core
                 {
                     _logger.Warn($"Role '{role.Name}' above bot -> trying to fix position");
 
-                    try
-                    {
-                        await role.ModifyAsync(p =>
-                        {
-                            p.Position = botUser.Hierarchy - 1;
-                        });
-
-                        _logger.Info("Birthday role repositioned successfully");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"Role reposition failed: {ex.Message}");
-                    }
                 }
                 else
                 {
@@ -168,6 +201,7 @@ namespace BirthdayBot.Core
             {
                 _logger.Error($"AutoSetup failed for {guild.Name}: {ex.Message}");
             }
+            _logger.Info("======================");
         }
     }
 }

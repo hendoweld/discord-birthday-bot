@@ -22,9 +22,23 @@ namespace BirthdayBot.Services
                 return false;
             }
 
+            if (role.IsManaged)
+            {
+                _logger.Warn($"Role '{role.Name}' is managed by Discord and cannot be assigned.");
+                return false;
+            }
+
             if (role.Position >= botUser.Hierarchy)
             {
                 _logger.Warn($"Role '{role.Name}' above bot hierarchy in {guild.Name}");
+                _logger.Info("======= Rollen =======");
+
+                foreach (var r in guild.Roles.OrderByDescending(r => r.Position))
+                {
+                    _logger.Info($"{r.Position} | {r.Name}");
+                }
+
+                _logger.Info("======================");
 
                 LogRoleDiagnostics(guild, role);
 

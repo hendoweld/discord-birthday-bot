@@ -1,4 +1,5 @@
-﻿using Discord.WebSocket;
+﻿using BirthdayBot.Database.Models;
+using Discord.WebSocket;
 
 namespace BirthdayBot.Services
 {
@@ -59,75 +60,115 @@ namespace BirthdayBot.Services
 
             foreach (var guild in _client.Guilds)
             {
-                var config = await _birthdayService.GetConfig(guild.Id);
-
-                if (config == null || config.BirthdayChannelId == 0)
-                    continue;
-
-                var channel = guild.GetTextChannel(config.BirthdayChannelId);
-                if (channel == null)
-                    continue;
-
-                var role = guild.GetRole(config.BirthdayRoleId);
-                if (role == null)
-                    continue;
-
-                if (!_permissionService.CanManageRole(guild, role))
-                    continue;
-
-                // ROLE CLEANUP
-                var birthdays = await _birthdayService.GetBirthdays(guild.Id);
-
-                var birthdayUserIds = birthdays
-                    .Where(b => b.Day == today.Day && b.Month == today.Month)
-                    .Select(b => b.UserId)
-                    .ToHashSet();
-
-                var roleId = role.Id;
-
-                var membersWithRole = guild.Users
-                    .Where(u => u.Roles.Any(r => r.Id == roleId));
-
-                foreach (var user in membersWithRole)
+                try
                 {
-                    if (!birthdayUserIds.Contains(user.Id))
-                    {
-                        try
-                        {
-                            await user.RemoveRoleAsync(role);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Error($"RemoveRole error: {ex.Message}");
-                        }
-                    }
+                    await ProcessGuild(guild, today);
                 }
-
-                foreach (var b in birthdays)
+                catch (Exception ex)
                 {
-                    if (b.LastNotified?.Date == today)
-                        continue;
-
-                    var user = guild.GetUser(b.UserId);
-                    if (user == null)
-                        continue;
-
-                    await channel.SendMessageAsync($"🎉 <@{b.UserId}> hat heute Geburtstag!");
-
-                    try
-                    {
-                        await user.AddRoleAsync(role);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"AddRole error: {ex.Message}");
-                    }
-
-                    await _birthdayService.UpdateLastNotified(guild.Id, b.UserId);
+                    _logger.Error($"Guild '{guild.Name}' Fehler: {ex}");
                 }
             }
 
             _logger.Info("Birthday check end");
+        }
+
+        private async Task ProcessGuild(
+            SocketGuild guild, 
+            DateTime today)
+        {
+            var config = await _birthdayService.GetOrCreateConfig(guild.Id);
+
+            if (config == null)
+                return;
+
+            var channel = guild.GetTextChannel(config.BirthdayChannelId);
+
+            if (channel == null)
+                return;
+
+            var role = guild.GetRole(config.BirthdayRoleId);
+
+            if (role == null)
+                return;
+
+            if (!_permissionService.CanManageRole(guild, role))
+                return;
+
+            var birthdays = await _birthdayService.GetBirthdays(guild.Id);
+
+            await CleanupBirthdayRoles(guild, role, birthdays, today);
+
+            foreach (var birthday in birthdays.Where(x => x.Day == today.Day &&
+                                                          x.Month == today.Month))
+            {
+                if (birthday.LastNotified?.Date == today)
+                    continue;
+
+                var user = guild.GetUser(birthday.UserId);
+
+                if (user == null)
+                    continue;
+
+                await channel.SendMessageAsync($"🎉 <@{birthday.UserId}> hat heute Geburtstag!");
+
+                await GiveBirthdayRole(guild, user, role);
+
+                await _birthdayService.UpdateLastNotified(guild.Id, birthday.UserId);
+            }
+        }
+
+        private async Task CleanupBirthdayRoles(
+            SocketGuild guild,
+            SocketRole role,
+            IEnumerable<Birthday> birthdays,
+            DateTime today)
+        {
+            var birthdayUsers = birthdays
+                .Where(x => x.Day == today.Day && x.Month == today.Month)
+                .Select(x => x.UserId)
+                .ToHashSet();
+
+            foreach (var user in guild.Users.Where(x => x.Roles.Contains(role)))
+            {
+                if (birthdayUsers.Contains(user.Id))
+                    continue;
+
+                try
+                {
+                    await user.RemoveRoleAsync(role);
+                    _logger.Info($"Geburtstagsrolle entfernt von {user.Username}");
+                }
+                catch (Discord.Net.HttpException ex)
+                {
+                    _logger.Error($"RemoveRole: {ex.DiscordCode} - {ex.Reason}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex.ToString());
+                }
+            }
+        }
+
+        private async Task GiveBirthdayRole(
+            SocketGuild guild,
+            SocketGuildUser user,
+            SocketRole role)
+        {
+            try
+            {
+                await user.AddRoleAsync(role);
+
+                _logger.Info($"Geburtstagsrolle an {user.Username} vergeben.");
+            }
+            catch (Discord.Net.HttpException ex)
+            {
+                _logger.Error($"Discord Error {ex.DiscordCode}: {ex.Reason}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex.ToString());
+            }
         }
     }
 }

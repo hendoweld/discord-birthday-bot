@@ -38,6 +38,31 @@ namespace BirthdayBot.Database
             };
         }
 
+        public async Task<List<Guild>> GetAllGuilds()
+        {
+            await using var conn = await _db.GetConnection();
+
+            var cmd = new NpgsqlCommand(
+                "SELECT guild_id, birthday_channel_id, birthday_role_id FROM guild_config",
+                conn);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            var list = new List<Guild>();
+
+            while (await reader.ReadAsync())
+            {
+                list.Add(new Guild
+                {
+                    GuildId = (ulong)reader.GetInt64(0),
+                    BirthdayChannelId = (ulong)reader.GetInt64(1),
+                    BirthdayRoleId = (ulong)reader.GetInt64(2)
+                });
+            }
+
+            return list;
+        }
+
         public async Task SaveGuild(Guild config)
         {
             await using var conn = await _db.GetConnection();
@@ -58,5 +83,19 @@ namespace BirthdayBot.Database
 
             await cmd.ExecuteNonQueryAsync();
         }
+
+        public async Task DeleteGuild(ulong guildId)
+        {
+            await using var conn = await _db.GetConnection();
+
+            await using var cmd = new NpgsqlCommand(@"
+                DELETE FROM guild_config WHERE guild_id = @g;
+                DELETE FROM birthdays WHERE guild_id = @g;
+            ", conn);
+
+            cmd.Parameters.AddWithValue("g", (long)guildId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
     }
 }

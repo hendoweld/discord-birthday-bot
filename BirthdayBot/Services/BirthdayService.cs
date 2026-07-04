@@ -106,16 +106,28 @@ namespace BirthdayBot.Services
             return await _birthdayRepo.RemoveBirthday(guildId, userId);
         }
 
-        public async Task<Guild?> GetConfig(ulong guildId)
+        public async Task<Guild> GetOrCreateConfig(ulong guildId)
         {
             var config = await _guildRepo.GetGuild(guildId);
 
-            if (config == null)
+            if (config != null)
+                return config;
+
+            config = new Guild
             {
-                _logger.Warn($"Guild config not found for {guildId}");
-            }
+                GuildId = guildId
+            };
+
+            await _guildRepo.SaveGuild(config);
+
+            _logger.Info($"Auto-created guild config for {guildId}");
 
             return config;
+        }
+
+        public async Task<List<Guild>> GetAllGuildConfigs()
+        {
+            return await _guildRepo.GetAllGuilds();
         }
 
         public async Task UpdateConfig(Guild config)
@@ -123,6 +135,12 @@ namespace BirthdayBot.Services
             await _guildRepo.SaveGuild(config);
 
             _logger.Info($"Guild config updated for {config.GuildId}");
+        }
+
+        public async Task DeleteGuildData(ulong guildId)
+        {
+            await _guildRepo.DeleteGuild(guildId);
+            _logger.Info($"Guild config deleted for {guildId}");
         }
 
         private bool IsValidDate(int day, int month)
