@@ -9,6 +9,7 @@ namespace BirthdayBot.Services
         private readonly BirthdayService _birthdayService;
         private readonly DiscordPermissionService _permissionService;
         private readonly LoggingService _logger;
+        private readonly LoggingService _logger;
 
         private CancellationTokenSource _cts;
 
@@ -17,10 +18,13 @@ namespace BirthdayBot.Services
             BirthdayService birthdayService,
             DiscordPermissionService permissionService,
             LoggingService logger)
+            DiscordPermissionService permissionService,
+            LoggingService logger)
         {
             _client = client;
             _birthdayService = birthdayService;
             _permissionService = permissionService;
+            _logger = logger;
             _logger = logger;
         }
 
@@ -31,6 +35,7 @@ namespace BirthdayBot.Services
             Task.Run(async () =>
             {
                 _logger.Info("Birthday Background Service gestartet");
+                _logger.Info("Birthday Background Service gestartet");
 
                 while (!_cts.Token.IsCancellationRequested)
                 {
@@ -40,6 +45,7 @@ namespace BirthdayBot.Services
                     }
                     catch (Exception ex)
                     {
+                        _logger.Error($"Background error: {ex.Message}");
                         _logger.Error($"Background error: {ex.Message}");
                     }
 

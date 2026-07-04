@@ -12,6 +12,13 @@ namespace BirthdayBot.Services
             _logger = logger;
         }
 
+        private readonly LoggingService _logger;
+
+        public DiscordPermissionService(LoggingService logger)
+        {
+            _logger = logger;
+        }
+
         public bool CanManageRole(SocketGuild guild, IRole role)
         {
             var botUser = guild.CurrentUser;

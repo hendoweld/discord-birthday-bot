@@ -1,4 +1,4 @@
-﻿using BirthdayBot.Database;
+using BirthdayBot.Database;
 using BirthdayBot.Database.Models;
 
 namespace BirthdayBot.Services
@@ -20,6 +20,7 @@ namespace BirthdayBot.Services
         {
             if (!IsValidDate(day, month))
             {
+                _logger.Warn($"Invalid birthday: {day}.{month}");
                 _logger.Warn($"Invalid birthday: {day}.{month}");
                 return;
             }
@@ -43,6 +44,7 @@ namespace BirthdayBot.Services
             var result = await _birthdayRepo.GetBirthday(guildId, userId);
 
             if (result == null)
+                _logger.Warn($"No birthday found for {userId} in {guildId}");
                 _logger.Warn($"No birthday found for {userId} in {guildId}");
 
             return result;

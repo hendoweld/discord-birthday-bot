@@ -1,5 +1,6 @@
 ﻿using BirthdayBot.Services;
 using Discord;
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 
@@ -12,6 +13,8 @@ namespace BirthdayBot.Core
         private readonly InteractionService _commands;
         private readonly BirthdayService _birthdayService;
         private readonly LoggingService _logger;
+        private readonly BirthdayService _birthdayService;
+        private readonly LoggingService _logger;
 
         public BotEventHandler(
             DiscordSocketClient client,
@@ -19,10 +22,15 @@ namespace BirthdayBot.Core
             InteractionService commands,
             BirthdayService birthdayService,
             LoggingService logger)
+            InteractionService commands,
+            BirthdayService birthdayService,
+            LoggingService logger)
         {
             _client = client;
             _backgroundService = backgroundService;
             _commands = commands;
+            _birthdayService = birthdayService;
+            _logger = logger;
             _birthdayService = birthdayService;
             _logger = logger;
         }
@@ -45,12 +53,16 @@ namespace BirthdayBot.Core
                 _logger.Info($"Commands registriert für {guild.Name}");
 
                 await AutoSetupGuild(guild);
+                _logger.Info($"Commands registriert für {guild.Name}");
+
+                await AutoSetupGuild(guild);
             }
 
             _backgroundService.Start();
         }
 
         // NEW SERVER
+        private async Task OnJoinedGuild(SocketGuild guild)
         private async Task OnJoinedGuild(SocketGuild guild)
         {
             _logger.Info("======================");

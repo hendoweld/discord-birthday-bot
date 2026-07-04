@@ -1,9 +1,12 @@
 ﻿using BirthdayBot.Database.Models;
 using BirthdayBot.Services;
+using BirthdayBot.Database.Models;
+using BirthdayBot.Services;
 using System.Text.Json;
 
 namespace BirthdayBot.Config
 {
+    public class ConfigLoader
     public class ConfigLoader
     {
         private readonly LoggingService _logger;

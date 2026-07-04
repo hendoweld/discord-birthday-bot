@@ -58,6 +58,9 @@ namespace BirthdayBot
                 commands,
                 birthdayService,
                 logger
+                commands,
+                birthdayService,
+                logger
             );
 
             eventHandler.Initialize();
@@ -66,6 +69,7 @@ namespace BirthdayBot
             await client.LoginAsync(TokenType.Bot, config.Token);
             await client.StartAsync();
 
+            logger.Info("Bot gestartet");
             logger.Info("Bot gestartet");
 
             await commandHandler.InitializeAsync();
