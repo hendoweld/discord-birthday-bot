@@ -147,11 +147,11 @@ namespace BirthdayBot.Services
         {
             if (month < 1 || month > 12)
                 return false;
-
-            if (day < 1 || day > 31)
+        
+            if (day < 1 || day > DateTime.DaysInMonth(2000, month))
                 return false;
-
-            return DateTime.TryParse($"{day}.{month}.2000", out _);
+        
+            return true;
         }
     }
 }
