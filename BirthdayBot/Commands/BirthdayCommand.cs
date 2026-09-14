@@ -1,7 +1,8 @@
 ﻿using BirthdayBot.Services;
 using Discord;
 using Discord.Interactions;
-using Discord.WebSocket;
+using Discord.WebSocket;#
+using System.Globalization;
 
 namespace BirthdayBot.Commands
 {
@@ -19,7 +20,8 @@ namespace BirthdayBot.Commands
         [SlashCommand("set", "Speichert deinen Geburtstag")]
         public async Task Set(int day, int month)
         {
-            if (!DateTime.TryParse($"{day}.{month}.2000", out _))
+            if (month < 1 || month > 12 ||
+                day < 1 || day > DateTime.DaysInMonth(2000, month))
             {
                 await RespondAsync("❌ Ungültiges Datum. Bitte prüfe Tag und Monat.", ephemeral: true);
                 return;
