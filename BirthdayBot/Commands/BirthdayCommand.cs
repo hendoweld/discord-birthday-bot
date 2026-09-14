@@ -1,8 +1,7 @@
 ﻿using BirthdayBot.Services;
 using Discord;
 using Discord.Interactions;
-using Discord.WebSocket;#
-using System.Globalization;
+using Discord.WebSocket;
 
 namespace BirthdayBot.Commands
 {
