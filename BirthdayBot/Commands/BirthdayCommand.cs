@@ -74,13 +74,14 @@ namespace BirthdayBot.Commands
             }
 
             var embed = new EmbedBuilder()
-                .WithTitle("🎂 Geburtstage auf diesem Server")
+                .WithTitle("🎂 Geburtstage auf diesem Server: ({birthdays.Count})")
                 .WithColor(Color.Gold);
 
             foreach (var b in birthdays)
             {
                 var user = Context.Guild.GetUser(b.UserId);
-                if (user == null) continue;
+
+                var name = user?.Username ?? $"Unbekannter Nutzer ({b.UserId})";
 
                 embed.AddField(user.Username, $"📅 {b.Day:D2}.{b.Month:D2}", true);
             }
