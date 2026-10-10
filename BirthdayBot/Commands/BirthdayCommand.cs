@@ -62,31 +62,60 @@ namespace BirthdayBot.Commands
         [SlashCommand("list", "Zeigt alle gespeicherten Geburtstage")]
         public async Task List()
         {
-            var birthdays = (await _birthdayService.GetBirthdays(Context.Guild.Id))
-                .OrderBy(x => x.Month)
-                .ThenBy(x => x.Day)
-                .ToList();
-
-            if (birthdays.Count == 0)
+            try
             {
-                await RespondAsync("📭 Es sind noch keine Geburtstage gespeichert.", ephemeral: true);
-                return;
+                var birthdays = (await _birthdayService.GetBirthdays(Context.Guild.Id))
+                    .OrderBy(x => x.Month)
+                    .ThenBy(x => x.Day)
+                    .ToList();
+        
+                if (birthdays.Count == 0)
+                {
+                    await RespondAsync(
+                        "📭 Es sind noch keine Geburtstage gespeichert.",
+                        ephemeral: true);
+                    return;
+                }
+        
+                var embeds = birthdays
+                    .Chunk(25)
+                    .Select((chunk, index) =>
+                    {
+                        var embed = new EmbedBuilder()
+                            .WithTitle(index == 0
+                                ? $"🎂 Geburtstage auf diesem Server: ({birthdays.Count})"
+                                : "🎂 Weitere Geburtstage")
+                            .WithColor(Color.Gold);
+        
+                        foreach (var b in chunk)
+                        {
+                            var user = Context.Guild.GetUser(b.UserId);
+                            var name = user?.Username
+                                ?? $"Unbekannter Nutzer ({b.UserId})";
+        
+                            embed.AddField(
+                                name,
+                                $"📅 {b.Day:D2}.{b.Month:D2}",
+                                inline: true);
+                        }
+        
+                        return embed.Build();
+                    })
+                    .ToArray();
+        
+                await RespondAsync(embeds: embeds);
             }
-
-            var embed = new EmbedBuilder()
-                .WithTitle("🎂 Geburtstage auf diesem Server: ({birthdays.Count})")
-                .WithColor(Color.Gold);
-
-            foreach (var b in birthdays)
+            catch (Exception ex)
             {
-                var user = Context.Guild.GetUser(b.UserId);
-
-                var name = user?.Username ?? $"Unbekannter Nutzer ({b.UserId})";
-
-                embed.AddField(user.Username, $"📅 {b.Day:D2}.{b.Month:D2}", true);
+                Console.WriteLine($"FEHLER in BirthdayCommand.List: {ex}");
+        
+                if (!Context.Interaction.HasResponded)
+                {
+                    await RespondAsync(
+                        "❌ Beim Laden der Geburtstagsliste ist ein Fehler aufgetreten.",
+                        ephemeral: true);
+                }
             }
-
-            await RespondAsync(embed: embed.Build());
         }
 
         // /birthday upcoming
