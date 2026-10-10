@@ -6,6 +6,7 @@ namespace BirthdayBot.Commands
 {
     [Group("birthday-config", "Birthday configuration commands")]
     [DefaultMemberPermissions(GuildPermission.Administrator)]
+    [RequireUserPermission(GuildPermission.Administrator)]
     public class BirthdayConfigCommand : InteractionModuleBase<SocketInteractionContext>
     {
         private readonly BirthdayService _birthdayService;
