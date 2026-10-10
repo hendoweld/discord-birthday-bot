@@ -38,10 +38,13 @@ namespace BirthdayBot.Core
         private async Task OnReady()
         {
             _logger.Info("READY EVENT TRIGGERED");
+            // EINMALIGE BEREINIGUNG alter globaler Commands - Bitte bei nächsten Commit entfernen
+            await _commands.RestClient.DeleteAllGlobalCommandsAsync();
+            
             await CleanupOrphanGuilds();
             foreach (var guild in _client.Guilds)
             {
-                await _commands.RegisterCommandsToGuildAsync(guild.Id);
+                await _commands.RegisterCommandsToGuildAsync(guild.Id, deleteMissing: true);
                 _logger.Info($"Commands registriert für {guild.Name}");
 
                 await AutoSetupGuild(guild);
