@@ -141,7 +141,7 @@ namespace BirthdayBot.Commands
 
         // /birthday remove-user
         [SlashCommand("remove-user", "Löscht den Geburtstag eines Users")]
-        [DefaultMemberPermissions(GuildPermission.Administrator)]
+        [RequireUserPermission(GuildPermission.Administrator)]
         public async Task RemoveUser(SocketGuildUser user)
         {
             var removed = await _birthdayService.RemoveBirthday(
