@@ -62,13 +62,13 @@ namespace BirthdayBot
 
             eventHandler.Initialize();
 
+            await commandHandler.InitializeAsync();
+
             // START BOT
             await client.LoginAsync(TokenType.Bot, config.Token);
             await client.StartAsync();
 
             logger.Info("Bot gestartet");
-
-            await commandHandler.InitializeAsync();
 
             await Task.Delay(-1);
         }
