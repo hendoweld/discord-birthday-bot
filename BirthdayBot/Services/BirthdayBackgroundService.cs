@@ -43,7 +43,7 @@ namespace BirthdayBot.Services
                         _logger.Error($"Background error: {ex.Message}");
                     }
 
-                    await Task.Delay(TimeSpan.FromMinutes(1), _cts.Token);
+                    await Task.Delay(TimeSpan.FromMinutes(10), _cts.Token);
                 }
             });
         }
@@ -56,7 +56,6 @@ namespace BirthdayBot.Services
         private async Task CheckBirthdays()
         {
             var today = DateTime.Today;
-            _logger.Info("Birthday check start");
 
             foreach (var guild in _client.Guilds)
             {
@@ -66,11 +65,10 @@ namespace BirthdayBot.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error($"Guild '{guild.Name}' Fehler: {ex}");
+                    _logger.Error($"Birthday check - Guild '{guild.Name}' Fehler: {ex}");
                 }
             }
 
-            _logger.Info("Birthday check end");
         }
 
         private async Task ProcessGuild(
